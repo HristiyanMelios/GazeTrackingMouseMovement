@@ -1,7 +1,7 @@
 from __future__ import division
 import os
 import cv2
-import dlib
+import mediapipe as mp
 from .eye import Eye
 from .calibration import Calibration
 
@@ -19,13 +19,15 @@ class GazeTracking(object):
         self.eye_right = None
         self.calibration = Calibration()
 
-        # _face_detector is used to detect faces
-        self._face_detector = dlib.get_frontal_face_detector()
-
-        # _predictor is used to get facial landmarks of a given face
-        cwd = os.path.abspath(os.path.dirname(__file__))
-        model_path = os.path.abspath(os.path.join(cwd, "trained_models/shape_predictor_68_face_landmarks.dat"))
-        self._predictor = dlib.shape_predictor(model_path)
+        # Initialize MediaPipe FaceMesh
+        mp_face = mp.solutions.face_mesh
+        self._face_mesh = mp_face.FaceMesh(
+            static_image_mode=False,
+            max_num_faces=1,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
 
     @property
     def pupils_located(self):
@@ -41,13 +43,23 @@ class GazeTracking(object):
 
     def _analyze(self):
         """Detects the face and initialize Eye objects"""
-        frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-        faces = self._face_detector(frame)
+        frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
 
+        if frame is None or frame.size == 0:
+            print('No frame detected')
+            return
+
+        results = self._face_mesh.process(frame)
+        if not results.multi_face_landmarks:
+            return
+
+        # Pass landmarks into Eye
         try:
-            landmarks = self._predictor(frame, faces[0])
-            self.eye_left = Eye(frame, landmarks, 0, self.calibration)
-            self.eye_right = Eye(frame, landmarks, 1, self.calibration)
+            mp_landmarks = results.multi_face_landmarks[0]
+            self.eye_left = Eye(self.frame, mp_landmarks, 0,
+                                self.calibration)
+            self.eye_right = Eye(self.frame, mp_landmarks, 1,
+                                 self.calibration)
 
         except IndexError:
             self.eye_left = None
@@ -80,31 +92,35 @@ class GazeTracking(object):
         """Returns a number between 0.0 and 1.0 that indicates the
         horizontal direction of the gaze. The extreme right is 0.0,
         the center is 0.5 and the extreme left is 1.0
+        In reality, the leftmost point is ~0.7 and rightmost point is ~0.3
         """
         if self.pupils_located:
-            pupil_left = self.eye_left.pupil.x / (self.eye_left.center[0] * 2 - 10)
-            pupil_right = self.eye_right.pupil.x / (self.eye_right.center[0] * 2 - 10)
-            return (pupil_left + pupil_right) / 2
+            pupil_left = self.eye_left.pupil.x / (self.eye_left.center[0] * 2)
+            pupil_right = self.eye_right.pupil.x / (self.eye_right.center[0] * 2)
+            horizontal_ratio = (pupil_left + pupil_right) / 2
+            return max(0.0, min(1.0,horizontal_ratio)) # Clamp values to [0.0,1.0]
 
     def vertical_ratio(self):
         """Returns a number between 0.0 and 1.0 that indicates the
         vertical direction of the gaze. The extreme top is 0.0,
         the center is 0.5 and the extreme bottom is 1.0
+        In reality, this goes to ~0.6 for bottom and ~0.4 for top
         """
         if self.pupils_located:
-            pupil_left = self.eye_left.pupil.y / (self.eye_left.center[1] * 2 - 10)
-            pupil_right = self.eye_right.pupil.y / (self.eye_right.center[1] * 2 - 10)
-            return (pupil_left + pupil_right) / 2
+            pupil_left = self.eye_left.pupil.y / (self.eye_left.center[1] * 2)
+            pupil_right = self.eye_right.pupil.y / (self.eye_right.center[1] * 2)
+            vertical_ratio = (pupil_left + pupil_right) / 2
+            return max(0.0, min(1.0,vertical_ratio)) # Clamp values to [0.0, 1.0]
 
     def is_right(self):
         """Returns true if the user is looking to the right"""
         if self.pupils_located:
-            return self.horizontal_ratio() <= 0.35
+            return self.horizontal_ratio() <= .45
 
     def is_left(self):
         """Returns true if the user is looking to the left"""
         if self.pupils_located:
-            return self.horizontal_ratio() >= 0.65
+            return self.horizontal_ratio() >= 0.55
 
     def is_center(self):
         """Returns true if the user is looking to the center"""
