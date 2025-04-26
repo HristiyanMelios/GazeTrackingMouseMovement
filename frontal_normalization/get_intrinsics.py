@@ -9,7 +9,7 @@ assert cap.isOpened(), "Could not open webcam"
 rows, cols, square_size = 7, 7, 1.0
 
 # Output dir. for images
-out_dir = "calib_imgs"
+out_dir = "calib_imgs_intrinsics"
 os.makedirs(out_dir, exist_ok=True)
 
 # Creating a grid of object points
@@ -67,3 +67,26 @@ while saved_frames < total_needed:
 
 cap.release()
 cv.destroyAllWindows()
+
+# --- Run camera calibration ---
+print("[INFO] Running camera calibration...")
+
+image_size = gry.shape[::-1]  # (width, height) of last processed frame
+
+ret, K, dist, rvecs, tvecs = cv.calibrateCamera(
+    objpoints,
+    imgpoints,
+    image_size,
+    None,
+    None
+)
+
+print(f"[INFO] Calibration successful: RMS error = {ret:.4f}")
+print(f"[INFO] Camera matrix (K):\n{K}")
+print(f"[INFO] Distortion coefficients:\n{dist}")
+
+# Save calibration result to disk
+np.savez(f"{out_dir}/intrinsics.npz", K=K, dist=dist)
+
+print("[INFO] Calibration saved to 'intrinsics.npz'")
+
