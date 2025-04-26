@@ -10,25 +10,36 @@ class Eye(object):
     initiates the pupil detection.
     """
 
-    LEFT_EYE_POINTS = [36, 37, 38, 39, 40, 41]
-    RIGHT_EYE_POINTS = [42, 43, 44, 45, 46, 47]
+    LEFT_EYE_POINTS = [33, 133, 159, 145]
+    RIGHT_EYE_POINTS = [362, 263, 386, 374]
 
-    def __init__(self, original_frame, landmarks, side, calibration):
+    def __init__(self, original_frame, mp_landmarks, side, calibration):
         self.frame = None
         self.origin = None
         self.center = None
         self.pupil = None
         self.landmark_points = None
 
-        self._analyze(original_frame, landmarks, side, calibration)
+        # store MediaPipe landmarks and frames
+        self.landmarks = mp_landmarks
+        h, w = original_frame.shape[:2]
+        self.frame_h, self.frame_w = h, w
+
+        self._analyze(original_frame, mp_landmarks, side, calibration)
+
+    def _pt(self, index):
+        """Fetches the landmark points at the given index as (x_px, y_px)"""
+        lm = self.landmarks.landmark[index]
+        return (int(lm.x * self.frame_w),
+                int(lm.y * self.frame_h))
 
     @staticmethod
     def _middle_point(p1, p2):
         """Returns the middle point (x,y) between two points
 
         Arguments:
-            p1 (dlib.point): First point
-            p2 (dlib.point): Second point
+            p1 (mp.point): First point
+            p2 (mp.point): Second point
         """
         x = int((p1.x + p2.x) / 2)
         y = int((p1.y + p2.y) / 2)
@@ -39,10 +50,10 @@ class Eye(object):
 
         Arguments:
             frame (numpy.ndarray): Frame containing the face
-            landmarks (dlib.full_object_detection): Facial landmarks for the face region
+            landmarks (self._pt): Facial landmarks for the face region
             points (list): Points of an eye (from the 68 Multi-PIE landmarks)
         """
-        region = np.array([(landmarks.part(point).x, landmarks.part(point).y) for point in points])
+        region = np.array([self._pt(pt) for pt in points])
         region = region.astype(np.int32)
         self.landmark_points = region
 
@@ -71,16 +82,16 @@ class Eye(object):
         It's the division of the width of the eye, by its height.
 
         Arguments:
-            landmarks (dlib.full_object_detection): Facial landmarks for the face region
-            points (list): Points of an eye (from the 68 Multi-PIE landmarks)
+            landmarks (mediapipe_landmarks): Facial landmarks for the face region
+            points (list): Points of an eye (from the mediapipe landmark points in _pts)
 
         Returns:
             The computed ratio
         """
-        left = (landmarks.part(points[0]).x, landmarks.part(points[0]).y)
-        right = (landmarks.part(points[3]).x, landmarks.part(points[3]).y)
-        top = self._middle_point(landmarks.part(points[1]), landmarks.part(points[2]))
-        bottom = self._middle_point(landmarks.part(points[5]), landmarks.part(points[4]))
+        left = self._pt(points[0])
+        right = self._pt(points[1])
+        top = self._pt(points[2])
+        bottom = self._pt(points[3])
 
         eye_width = math.hypot((left[0] - right[0]), (left[1] - right[1]))
         eye_height = math.hypot((top[0] - bottom[0]), (top[1] - bottom[1]))
@@ -98,22 +109,42 @@ class Eye(object):
 
         Arguments:
             original_frame (numpy.ndarray): Frame passed by the user
-            landmarks (dlib.full_object_detection): Facial landmarks for the face region
+            landmarks (self.<EYE>_POINTS): Facial landmarks for the face region
             side: Indicates whether it's the left eye (0) or the right eye (1)
             calibration (calibration.Calibration): Manages the binarization threshold value
         """
+
         if side == 0:
-            points = self.LEFT_EYE_POINTS
+            pts = self.LEFT_EYE_POINTS
+            iris_idx = (468, 469, 470, 471, 472)
         elif side == 1:
-            points = self.RIGHT_EYE_POINTS
+            pts = self.RIGHT_EYE_POINTS
+            iris_idx = (473, 474, 475, 476, 477)
         else:
             return
 
-        self.blinking = self._blinking_ratio(landmarks, points)
-        self._isolate(original_frame, landmarks, points)
+        self.blinking = self._blinking_ratio(landmarks, pts)
+        self._isolate(original_frame, self.landmarks, pts)
+
+        # Pixel coordinates for iris landmarks
+        iris_pts = [self._pt(i) for i in iris_idx]
 
         if not calibration.is_complete():
             calibration.evaluate(self.frame, side)
 
         threshold = calibration.threshold(side)
-        self.pupil = Pupil(self.frame, threshold)
+
+        # x and y average
+        cx = sum(p[0] for p in iris_pts) / len(iris_pts)
+        cy = sum(p[1] for p in iris_pts) / len(iris_pts)
+
+        # local coordinates
+        px = int(cx - self.origin[0])
+        py = int(cy - self.origin[1])
+
+        # Store pupil location
+        class SimplePoint:
+            def __init__(self, x, y):
+                self.x, self.y = x, y
+
+        self.pupil = SimplePoint(px, py)
