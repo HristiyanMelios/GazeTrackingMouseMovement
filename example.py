@@ -5,6 +5,7 @@ Check the README.md for complete documentation.
 
 import cv2
 from gaze_tracking import GazeTracking
+import numpy as np
 
 gaze = GazeTracking()
 webcam = cv2.VideoCapture(0)
@@ -36,9 +37,25 @@ while True:
     cv2.putText(frame, "Right pupil: " + str(right_pupil), (90, 165), cv2.FONT_HERSHEY_DUPLEX, 0.9, (147, 58, 31), 1)
 
     img_pts = gaze.get_img_pts()
-    if len(img_pts) > 0:
-        for (x, y) in img_pts:
-            cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 0), -1)
+    # if len(img_pts) > 0:
+    #     for (x, y, z) in img_pts:
+    #         print(int(x*frame.shape[0]), int(y*frame.shape[1]))
+    #         cv2.circle(frame, (int(x*frame.shape[1]), int(y*frame.shape[0])), 3, (0, 255, 0), -1)
+
+
+
+    canvas = np.ones((500, 500, 3), dtype=np.uint8) * 255  # white canvas
+
+    for (x, y, z) in img_pts:
+        # Scale and center for visualization
+        vis_x = int(x * 2 + 250)
+        vis_y = int(-y * 2 + 250)  # invert y-axis to match screen coordinates
+
+        # Draw a small circle for each point
+        cv2.circle(frame, (vis_x, vis_y), 4, (0, 0, 255), -1)  # Red filled dot
+
+    # cv2.imshow('Canonicalized Landmarks', canvas)
+    # cv2.waitKey(1)
 
     cv2.imshow("Demo", frame)
 

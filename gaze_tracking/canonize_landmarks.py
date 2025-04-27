@@ -69,6 +69,9 @@ class Canonize():
             self._pt(landmark_dict['chin']),            
         ])
 
+        self.R = np.ones((3,3))
+        self.tvec = np.ones((3,1))
+
     @classmethod
     def empty_canonizer(cls):
         dummy_landmarks = None
@@ -76,10 +79,80 @@ class Canonize():
         return cls(dummy_landmarks, dummy_frame)
     
     def get_img_pts(self):
-        return self.image_points
+        # return self.image_points
+        return self._canonize()
 
-    def mediapipe_landmarks():
-        pass
+    def solve_pnp(self):
+        success, rvec, tvec = cv2.solvePnP(
+            self.model_points, self.image_points, self.k, self.dist,
+            flags = cv2.SOLVEPNP_ITERATIVE
+        )
+
+        if success:
+            self.R, _ = cv2.Rodrigues(rvec)
+            self.tvec = tvec
+        if not success:
+            raise RuntimeError("solvePnP failed")
+    
+    # def _canonize(self):
+    #     """Back-project each pixel into camera space using its true depth,
+    #        then transform into the object frame."""
+    #     canon = []
+    #     # Compute Z_cam for each model point once:
+    #     Zs = (self.R[2] @ self.model_points.T) + self.tvec[2,0]
+    #     for (u, v), Z in zip(self.image_points, Zs):
+    #         # Back project model points into camera frame
+    #         x_cam = (u - self.k[0,2]) / self.k[0,0] * Z
+    #         y_cam = (v - self.k[1,2]) / self.k[1,1] * Z
+    #         X_cam = np.array([x_cam, y_cam, Z])
+
+    #         # Canonize image points into object frame
+    #         X_obj = self.R.T @ (X_cam - self.tvec)
+    #         canon.append(X_obj[:2])  # we only need x,y
+    #     return np.vstack(canon)    # shape = (n_landmarks, 2)
+    def _canonize(self):
+        canon = []
+        
+        # Estimate single global Z_cam using nose tip
+        Z_est = (self.R[2] @ self.model_points[0]) + self.tvec[2,0]
+        
+        for (u, v) in self.image_points:
+            # Back-project using estimated depth
+            x_cam = (u - self.k[0,2]) / self.k[0,0] * Z_est
+            y_cam = (v - self.k[1,2]) / self.k[1,1] * Z_est
+            X_cam = np.array([x_cam, y_cam, Z_est])
+
+            # Canonical transform
+            X_obj = self.R.T @ (X_cam.reshape(3,1) - self.tvec)
+            canon.append(X_obj[:,0])  # x,y,z
+
+        return np.vstack(canon)
+
+    def refresh(self, mediapipe_landmarks, frame):
+        self.landmarks = mediapipe_landmarks
+        self.frame_w = frame.shape[1]
+        self.frame_h = frame.shape[0]
+
+        # Update image points
+        landmark_dict = {
+            "nose_tip": 1,
+            "chin": 152,
+            "left_eye_outer": 33,
+            "left_eye_inner": 133,
+            "right_eye_outer": 263,
+            "right_eye_inner": 362,
+            "left_mouth_corner": 61,
+            "right_mouth_corner": 291,
+        }
+
+        self.image_points = np.array([
+            self._pt(landmark_dict['nose_tip']),
+            self._pt(landmark_dict['left_eye_outer']),
+            self._pt(landmark_dict['left_eye_inner']),
+            self._pt(landmark_dict['right_eye_outer']),
+            self._pt(landmark_dict['right_eye_inner']),
+            self._pt(landmark_dict['chin']),            
+        ])
 
     def _pt(self, index):
         """Fetches the landmark points at the given index as (x_px, y_px)"""
