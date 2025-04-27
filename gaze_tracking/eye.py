@@ -99,7 +99,7 @@ class Eye(object):
         try:
             ratio = eye_width / eye_height
         except ZeroDivisionError:
-            ratio = None
+            ratio = float('inf') # Return large float to stop crashes when dividing by NoneType
 
         return ratio
 
@@ -131,8 +131,6 @@ class Eye(object):
 
         if not calibration.is_complete():
             calibration.evaluate(self.frame, side)
-
-        threshold = calibration.threshold(side)
 
         # x and y average
         cx = sum(p[0] for p in iris_pts) / len(iris_pts)
