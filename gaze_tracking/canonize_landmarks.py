@@ -44,21 +44,20 @@ class Canonize():
         # Obtaining landmarks from media_pipe. Will extract x,y components later using self._pt()
         self.landmarks = mediapipe_landmarks
 
-        self.frame_w = frame.shape[0]
-        self.frame_h = frame.shape[1]
+        self.frame_w = frame.shape[1]
+        self.frame_h = frame.shape[0]
 
 
         # Defining key points on the human face into a canonical pose
             # nose will be at origin and eyes are ~60 units apart from each other
             # Pupil's are about ~ 30 units away from the nose tip 
         self.model_points = np.array([
-            (0.0, 0.0, 0.0), #nose
+            (0.0, 0.0, 0.0), #nose tip
             (-60.0, 30.0, -10.0), #left eye outer corner
             (-30.0, 30.0, -10.0), #left eye inner corner
             (60.0, 30.0, -10.0), #right eye outer corner
             (30.0, 30.0, -10.0), #right eye inner corner
-            (0.0, -60.0, -5.0) #chin
-            
+            (0.0, -60.0, -5.0)     #chin  
         ])
 
         self.image_points = np.array([
