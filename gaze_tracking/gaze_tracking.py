@@ -4,7 +4,8 @@ import cv2
 import mediapipe as mp
 from .eye import Eye
 from .calibration import Calibration
-
+from .canonize_landmarks import Canonize
+import numpy as np
 
 class GazeTracking(object):
     """
@@ -27,7 +28,9 @@ class GazeTracking(object):
             refine_landmarks=True,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
-        )
+        ) 
+
+        self.mp_landmarks_processed = Canonize.empty_canonizer()
 
     @property
     def pupils_located(self):
@@ -53,9 +56,11 @@ class GazeTracking(object):
         if not results.multi_face_landmarks:
             return
 
+        # Processing landmarks into a canonized space before passing into eye
+        self.mp_landmarks_processed = Canonize(mediapipe_landmarks=results.multi_face_landmarks[0], frame = frame)
         # Pass landmarks into Eye
         try:
-            mp_landmarks = results.multi_face_landmarks[0]
+            mp_landmarks = results.multi_face_landmarks[0]    
             self.eye_left = Eye(self.frame, mp_landmarks, 0,
                                 self.calibration)
             self.eye_right = Eye(self.frame, mp_landmarks, 1,
@@ -147,3 +152,6 @@ class GazeTracking(object):
             cv2.line(frame, (x_right, y_right - 5), (x_right, y_right + 5), color)
 
         return frame
+
+    def get_img_pts(self):
+        return self.mp_landmarks_processed.get_img_pts()

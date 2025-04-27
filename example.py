@@ -35,6 +35,11 @@ while True:
     cv2.putText(frame, "Left pupil:  " + str(left_pupil), (90, 130), cv2.FONT_HERSHEY_DUPLEX, 0.9, (147, 58, 31), 1)
     cv2.putText(frame, "Right pupil: " + str(right_pupil), (90, 165), cv2.FONT_HERSHEY_DUPLEX, 0.9, (147, 58, 31), 1)
 
+    img_pts = gaze.get_img_pts()
+    if len(img_pts) > 0:
+        for (x, y) in img_pts:
+            cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 0), -1)
+
     cv2.imshow("Demo", frame)
 
     if cv2.waitKey(1) == 27:

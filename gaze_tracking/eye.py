@@ -121,8 +121,8 @@ class Eye(object):
             pts = self.RIGHT_EYE_POINTS
             iris_idx = (473, 474, 475, 476, 477)
         else:
-            return
 
+            return
         self.blinking = self._blinking_ratio(landmarks, pts)
         self._isolate(original_frame, self.landmarks, pts)
 
