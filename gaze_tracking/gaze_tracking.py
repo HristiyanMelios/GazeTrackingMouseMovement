@@ -31,6 +31,8 @@ class GazeTracking(object):
         ) 
 
         self.mp_landmarks_processed = Canonize.empty_canonizer()
+        self.cannonized_lm = np.array([]) 
+        # self.mp_landmarks_processed = Canonize(mediapipe_landmarks=results.multi_face_landmarks[0], frame = frame)
 
     @property
     def pupils_located(self):
@@ -57,7 +59,7 @@ class GazeTracking(object):
             return
 
         # Processing landmarks into a canonized space before passing into eye
-        self.mp_landmarks_processed = Canonize(mediapipe_landmarks=results.multi_face_landmarks[0], frame = frame)
+        self.cannonized_lm = self.mp_landmarks_processed.refresh(results.multi_face_landmarks[0], frame)
         # Pass landmarks into Eye
         try:
             mp_landmarks = results.multi_face_landmarks[0]    
@@ -153,5 +155,8 @@ class GazeTracking(object):
 
         return frame
 
-    def get_img_pts(self):
-        return self.mp_landmarks_processed.get_img_pts()
+    def get_canonized_lm(self):
+        return self.cannonized_lm
+    
+    # def get_img_pts(self):
+    #     return self.mp_landmarks_processed.get_img_pts()
