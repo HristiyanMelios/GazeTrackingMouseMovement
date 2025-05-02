@@ -119,7 +119,6 @@ class MouseCalibration:
                 ((Ex_med,Ey_med), pt)
             )
 
-        self.cap.release()
         cv2.destroyWindow(self.window_name)
 
     def fit(self):
