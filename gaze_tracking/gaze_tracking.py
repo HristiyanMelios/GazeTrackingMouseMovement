@@ -92,7 +92,6 @@ class GazeTracking(object):
         """Returns a number between 0.0 and 1.0 that indicates the
         horizontal direction of the gaze. The extreme right is 0.0,
         the center is 0.5 and the extreme left is 1.0
-        In reality, the leftmost point is ~0.7 and rightmost point is ~0.3
         """
         if self.pupils_located:
             pupil_left = self.eye_left.pupil.x / (self.eye_left.center[0] * 2)
@@ -104,7 +103,6 @@ class GazeTracking(object):
         """Returns a number between 0.0 and 1.0 that indicates the
         vertical direction of the gaze. The extreme top is 0.0,
         the center is 0.5 and the extreme bottom is 1.0
-        In reality, this goes to ~0.6 for bottom and ~0.4 for top
         """
         if self.pupils_located:
             pupil_left = self.eye_left.pupil.y / (self.eye_left.center[1] * 2)
