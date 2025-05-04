@@ -82,7 +82,7 @@ class Canonize():
 
         # Build image_points
         ld = self.landmarks.landmark
-        idxs = [1, 152, 33, 133, 263, 362]
+        idxs = [1, 33, 133, 263, 362, 152]
         pts = [(ld[i].x * self.frame_w, ld[i].y * self.frame_h) for i in idxs]
         self.image_points = np.array(pts, dtype=np.float32).reshape(-1, 2)
 
@@ -120,12 +120,14 @@ class Canonize():
         t = self.prev_tvec
 
         # Depth estimation via median
-        Zs = R[2] @ self.model_points.T + t[2, 0]
-        Z_est = float(np.median(Zs))
+        # Zs = R[2] @ self.model_points.T + t[2, 0]
+        # Z_est = float(np.median(Zs))
 
         # Back-project + canonize
         canon = []
         for (u, v) in self.image_points:
+            Zs = (R @ self.model_points.T + t).T[:, 2]        # shape (6,)
+            Z_est = float(np.median(Zs))
             x_cam = (u - self.k[0, 2]) / self.k[0, 0] * Z_est
             y_cam = (v - self.k[1, 2]) / self.k[1, 1] * Z_est
             X_cam = np.array([x_cam, y_cam, Z_est], dtype=np.float32).reshape(3, 1)

@@ -10,6 +10,11 @@ import numpy as np
 gaze = GazeTracking()
 webcam = cv2.VideoCapture(0)
 
+
+scale_fixed     = True   # set once and keep forever
+smoothed_scale  = None   # exponentially–smoothed per frame (option B)
+α_scale         = 0.05   # smoothing coefficient for option B
+
 while True:
     # We get a new frame from the webcam
     _, frame = webcam.read()
@@ -41,7 +46,6 @@ while True:
 
     # get the stabilized, canonicalized 3D landmarks
     canon_pts = gaze.get_canonized_lm()
-
     # prepare a 500×500 white canvas
     canvas_h, canvas_w = 500, 500
     canvas = np.ones((canvas_h, canvas_w, 3), dtype=np.uint8) * 255
@@ -50,17 +54,31 @@ while True:
         # nose is first point
         nose_x, nose_y, _ = canon_pts[0]
 
-        # dynamic scale so inner eye corners are ~100 px apart
-        left_inner  = canon_pts[2]
-        right_inner = canon_pts[4]
-        eye_dist_mm = np.linalg.norm(left_inner - right_inner) + 1e-6
-        scale = 100.0 / eye_dist_mm
+        # current inner‑eye distance in canonical millimetres
+        eye_dist_mm = np.linalg.norm(canon_pts[2] - canon_pts[4]) + 1e-6
 
+        # ───── Option A: freeze scale after first frame ─────
+        if scale_fixed is None:
+            scale_fixed = 100.0 / eye_dist_mm    # set once
+        scale = scale_fixed
+
+        # ───── Option B: low‑pass the scale (comment out if using A) ─────
+        if smoothed_scale is None:
+            smoothed_scale = 100.0 / eye_dist_mm
+        else:
+            target_scale   = 100.0 / eye_dist_mm
+            smoothed_scale = α_scale * target_scale + (1 - α_scale) * smoothed_scale
+        scale = smoothed_scale
+        # ─────────────────────────────────────────────────────────────────
+
+        # draw the landmarks
         for (x, y, z) in canon_pts:
-            # shift nose to origin, then scale, then center on canvas
             vis_x = int((x - nose_x) * scale + canvas_w / 2)
             vis_y = int((nose_y - y) * scale + canvas_h / 2)
             cv2.circle(canvas, (vis_x, vis_y), 4, (0, 0, 255), -1)
+
+        # quick sanity read‑out
+        print(f"eye‑eye dist canonical: {eye_dist_mm:.2f} mm")
 
     # show both windows
     cv2.imshow('Canonicalized Landmarks', canvas)
