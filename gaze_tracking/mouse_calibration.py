@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
-from gaze_tracking import GazeTracking
+from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
 import time
 import pyautogui
 import statistics
@@ -9,12 +11,11 @@ import statistics
 class MouseCalibration:
     """
     Calibrates eye position to (x,y) monitor coordinates by collecting
-    gaze ratios, and performing least squares regression
+    gaze ratios, and performing fit and predict.
     """
     def __init__(self, tracker):
         """
         tracker: GazeTracker object
-        screen_w and screen_h: Screen resolution taken from pyautogui
         """
         self.tracker = tracker
 
@@ -33,10 +34,11 @@ class MouseCalibration:
         # Array to store the coordinate mappings when calibrating
         self.calibration_data = []
 
-        self.skip_frames = 10
-        self.capture_frames = 50
+        self.skip_frames = 30
+        self.capture_frames = 60
         self.window_name = 'Coordinate Calibration'
         self.canvas = np.zeros((self.screen_h, self.screen_w, 3), np.uint8)
+        self._poly_model = None
         self.cap = None
 
     @staticmethod
@@ -106,41 +108,30 @@ class MouseCalibration:
 
                 self._draw(point=pt)
 
-            # Store average of data
-            # Ex_avg = sum(Ex)/len(Ex)
-            # Ey_avg = sum(Ey)/len(Ey)
             Ex_filtered = self._reject_outliers(Ex)
             Ey_filtered = self._reject_outliers(Ey)
 
-            # Try median instead
+            # compute median of the values at a point
             Ex_med = statistics.median(Ex_filtered)
             Ey_med = statistics.median(Ey_filtered)
-            self.calibration_data.append(
-                ((Ex_med,Ey_med), pt)
-            )
+
+            self.calibration_data.append(((Ex_med, Ey_med), pt))
 
         cv2.destroyWindow(self.window_name)
 
     def fit(self):
         """
-        Least squares regression fit from Eye (Ex,Ey) to monitor coordinates (x,y)
-        Returns six parameters: a, b, tx, c, d, ty.
-        a,b,c,d are the shifts in eye ratios to map into movement
-        tx and ty are the offsets for gaze_ratio calculation to stay centered
+        Polynomial Linear Regression mapping from eye position to (x,y) monitor coordinates
         """
-        # 1D MAPPING SOLUTION
-        # build vectors
-        exs = np.array([ex for (ex, ey), _ in self.calibration_data])
-        X_true = np.array([X for _, (X, _) in self.calibration_data])
-        eys = np.array([ey for (ex, ey), _ in self.calibration_data])
-        Y_true = np.array([Y for _, (_, Y) in self.calibration_data])
+        # store the values in an array
+        features = np.array([[ex, ey] for (ex,ey),(X,Y) in self.calibration_data])
+        targets = np.array([[X, Y] for (ex,ey),(X,Y) in self.calibration_data])
 
-        # 1D least‐squares: X = a_h*ex + tx_h
-        E_h = np.vstack([exs, np.ones_like(exs)]).T
-        (a_h, tx_h), *_ = np.linalg.lstsq(E_h, X_true, rcond=None)
+        # pipeline: (ex,ey) → [ex,ey,ex*ey,ex^2,ey^2] → linear fit
+        model = make_pipeline(
+            PolynomialFeatures(degree=2, include_bias=False),
+            LinearRegression()
+        ).fit(features, targets)
+        self._poly_model = model
 
-        # 1D least‐squares: Y = a_v*ey + ty_v
-        E_v = np.vstack([eys, np.ones_like(eys)]).T
-        (a_v, ty_v), *_ = np.linalg.lstsq(E_v, Y_true, rcond=None)
-
-        return a_h, tx_h, a_v, ty_v
+        return model
