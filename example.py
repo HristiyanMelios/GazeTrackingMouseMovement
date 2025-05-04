@@ -4,12 +4,14 @@ Check the README.md for complete documentation.
 """
 
 import cv2
+import pyautogui
+import numpy as np
 from gaze_tracking import GazeTracking
 from gaze_tracking.mouse_calibration import MouseCalibration
-import pyautogui
+
 
 gaze = GazeTracking()
-webcam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+webcam = cv2.VideoCapture(0)
 
 if not webcam.isOpened():
     raise RuntimeError('Cannot open webcam')
@@ -31,20 +33,20 @@ print("\n   ey range:",
       max(e for (_, e), _ in calibrator.calibration_data))
 
 # Fit affine mapping
-a_h, tx_h, a_v, ty_v = calibrator.fit()
-print(f"Fitted affine params: a_h={a_h:.4f}, tx_h={tx_h:.4f}, a_v={a_v:.1f}, "
-      f"ty_v={ty_v:.4f}")
+calibrator.fit()
 
 # Evaluate residuals
 errs = []
 w, h = pyautogui.size()
 print("\nCalibration residuals:")
 for (ex, ey), (X_true, Y_true) in calibrator.calibration_data:
-    X_pred = min(max((a_h * ex + tx_h), 0), w)  # clamp to [0, w]
-    Y_pred = min(max((a_v * ey + ty_v), 0), h)  # clamp to [0, h]
-    err = ((X_pred - X_true)**2 + (Y_pred - Y_true)**2)**0.5
+    X_pred, Y_pred = calibrator._poly_model.predict([[ex, ey]])[0]
+    X_clamped = max(0, min(w, X_pred))
+    Y_clamped = max(0, min(h, Y_pred))
+
+    err = ((X_clamped - X_true)**2 + (Y_clamped - Y_true)**2)**0.5
     errs.append(err)
-    print(f"  target: {(X_true, Y_true)} → pred: ({X_pred:.1f}, {Y_pred:.1f}), errr {err:.1f}px")
+    print(f"  target: {(X_true, Y_true)} → pred: ({X_clamped:.1f}, {Y_clamped:.1f}), errr {err:.1f}px")
 
 mean_err = sum(errs)/len(errs)
 max_err = max(errs)
@@ -53,22 +55,64 @@ print("Calibration complete. Entering live gaze demo")
 
 # ───── End Calibration ────────────────────
 
+
+prev_x, prev_y = pyautogui.position()
+left_closed_prev = False
+right_closed_prev = False
+alpha = 0.2
+smoothed_x, smoothed_y = prev_x, prev_y
+
 while True:
     # We get a new frame from the webcam
     _, frame = webcam.read()
 
     if not _ or frame is None:
-        print("Failed to grab frame")
+        print("⚠️ Failed to grab frame")
         break  # or continue
 
     # We send this frame to GazeTracking to analyze it
     gaze.refresh(frame)
 
-    # ex = gaze.horizontal_ratio()
-    # ey = gaze.vertical_ratio()
-    # X_pred = ex * w
-    # Y_pred = ey * h
-    # print(f"Raw map → ({X_pred:.0f}, {Y_pred:.0f}) vs. actual cursor")
+    # 1) Get your raw gaze ratios
+    ex = gaze.horizontal_ratio()
+    ey = gaze.vertical_ratio()
+
+    if ex is not None and ey is not None:
+        # 2) Predict screen coords (use your affine or poly model)
+        #    If you stuck with RANSAC, swap in calibrator._ransac_x/_ransac_y
+        X_pred, Y_pred = calibrator._poly_model.predict([[ex, ey]])[0]
+
+        # 3) Clamp to the monitor bounds
+        X_clamped = np.clip(X_pred, 0, w)
+        Y_clamped = np.clip(Y_pred, 0, h)
+
+        smoothed_x = alpha * X_clamped + (1 - alpha) * smoothed_x
+        smoothed_y = alpha * Y_clamped + (1 - alpha) * smoothed_y
+
+        # 4) Delta‑guard to prevent spikes
+        dx = smoothed_x - prev_x
+        dy = smoothed_y - prev_y
+        max_jump = 55  # pixels per frame
+        X_final = prev_x + np.clip(dx, -max_jump, max_jump)
+        Y_final = prev_y + np.clip(dy, -max_jump, max_jump)
+
+        # 5) Move the OS cursor
+        pyautogui.moveTo(int(X_final), int(Y_final))
+
+        # 6) Blink‑based clicking
+        #    Eye‑closure ratio lives in gaze.eye_left.blinking (and .eye_right)
+        blink_thresh = 5.68
+        left_closed = gaze.eye_left.blinking > blink_thresh
+        right_closed = gaze.eye_right.blinking > blink_thresh
+
+        if left_closed and not left_closed_prev:
+            pyautogui.click(button='left')
+        if right_closed and not right_closed_prev:
+            pyautogui.click(button='right')
+
+        # 7) Save state for next frame
+        left_closed_prev, right_closed_prev = left_closed, right_closed
+        prev_x, prev_y = X_final, Y_final
 
     frame = gaze.annotated_frame()
     text = ""
