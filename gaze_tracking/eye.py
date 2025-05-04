@@ -99,7 +99,8 @@ class Eye(object):
         try:
             ratio = eye_width / eye_height
         except ZeroDivisionError:
-            ratio = float('inf') # Return large float to stop crashes when dividing by NoneType
+            # Return large float to stop crashes when dividing by NoneType
+            ratio = float('inf')
 
         return ratio
 
@@ -109,7 +110,7 @@ class Eye(object):
 
         Arguments:
             original_frame (numpy.ndarray): Frame passed by the user
-            landmarks (self.<EYE>_POINTS): Facial landmarks for the face region
+            landmarks (self.<EYE>_POINTS): Facial landmarks for the eye region
             side: Indicates whether it's the left eye (0) or the right eye (1)
             calibration (calibration.Calibration): Manages the binarization threshold value
         """
