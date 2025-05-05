@@ -15,7 +15,7 @@ This is a Python (2 and 3) library that provides a **webcam-based eye tracking s
 Clone this project:
 
 ```shell
-git clone https://github.com/antoinelame/GazeTracking.git
+git clone https://github.com/HristiyanMelios/GazeTrackingMouseMovement.git
 ```
 
 ### For Pip install
