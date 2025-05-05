@@ -9,7 +9,6 @@ This is a Python (2 and 3) library that provides a **webcam-based eye tracking s
 
 [![Demo](https://i.imgur.com/WNqgQkO.gif)](https://youtu.be/YEZMk1P0-yw)
 
-_🚀 Quick note: I'm looking for job opportunities as a software developer, for exciting projects in ambitious companies. Anywhere in the world. Send me an email!_
 
 ## Installation
 
@@ -20,17 +19,14 @@ git clone https://github.com/antoinelame/GazeTracking.git
 ```
 
 ### For Pip install
-Install these dependencies (NumPy, OpenCV, Dlib):
+Install these dependencies (NumPy, OpenCV, MediaPipe, scikit-learn):
 
 ```shell
 pip install -r requirements.txt
 ```
 
-> The Dlib library has four primary prerequisites: Boost, Boost.Python, CMake and X11/XQuartx. If you doesn't have them, you can [read this article](https://www.pyimagesearch.com/2017/03/27/how-to-install-dlib/) to know how to easily install them.
-
-
 ### For Anaconda install
-Install these dependencies (NumPy, OpenCV, Dlib):
+Install these dependencies (NumPy, OpenCV, MediaPipe, scikit-learn, numy):
 
 ```shell
 conda env create --file environment.yml
@@ -76,6 +72,10 @@ while True:
     if cv2.waitKey(1) == 27:
         break
 ```
+## Calibration
+Once you run the demo file `example.py`, a fullscreen window will open asking you to press 'Space'.
+Nine total targets will appear, beginning in the top-left and ending at the center going clockwise, moving half the resolution of the monitor each iteration
+After calibration, the live demo loop will resume again and the program will take control of the mouse
 
 ## Documentation
 
