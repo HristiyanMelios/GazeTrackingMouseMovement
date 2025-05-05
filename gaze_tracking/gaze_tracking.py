@@ -102,8 +102,7 @@ class GazeTracking(object):
 
         x_l, _ = self.pupil_left_coords()
         x_r, _ = self.pupil_right_coords()
-
-        # full‑range X coords of each eye polygon
+        
         xs_l = [pt[0] for pt in self.eye_left.landmark_points]
         xl_min, xl_max = min(xs_l), max(xs_l)
 
@@ -135,7 +134,7 @@ class GazeTracking(object):
 
         # get raw points
         (x_l, y_l), (x_r, y_r) = self.pupil_left_coords(), self.pupil_right_coords()
-        pts_l = self.eye_left.landmark_points  # array of shape (n,2)
+        pts_l = self.eye_left.landmark_points
         pts_r = self.eye_right.landmark_points
 
         def single_eye_ratio(pupil, landmarks):
