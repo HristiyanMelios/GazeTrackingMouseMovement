@@ -4,6 +4,9 @@ channels:
   - anaconda
   - defaults
 dependencies:
-  - numpy == 1.16.1
-  - opencv == 3.4.*
-  - dlib == 19.17.*
+  - mediapipe== 0.10.21
+  - numpy== 1.26.4
+  - opencv-python == 4.11.*
+  - scikit-learn == 1.6.1
+  - PyAutoGUI == 0.9.54
+  - setuptools == 75.1.0
