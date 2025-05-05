@@ -79,7 +79,6 @@ while True:
 
     if ex is not None and ey is not None:
         # 2) Predict screen coords (use your affine or poly model)
-        #    If you stuck with RANSAC, swap in calibrator._ransac_x/_ransac_y
         X_pred, Y_pred = calibrator._poly_model.predict([[ex, ey]])[0]
 
         # 3) Clamp to the monitor bounds
