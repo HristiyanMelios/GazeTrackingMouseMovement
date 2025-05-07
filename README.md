@@ -11,7 +11,7 @@ This is a Python (2 and 3) library that provides a **webcam-based eye tracking s
 
 
 ## Installation
-- MediaPipe currently supports Python 3.9-3.12. Make sure one of these versions is installed. - 
+- MediaPipe currently supports Python 3.9-3.12. Make sure one of these versions is installed.
 
 Clone this project:
 
