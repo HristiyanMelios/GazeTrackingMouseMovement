@@ -26,16 +26,6 @@ Install these dependencies (NumPy, OpenCV, MediaPipe, scikit-learn):
 pip install -r requirements.txt
 ```
 
-### For Anaconda install
-Install these dependencies (NumPy, OpenCV, MediaPipe, scikit-learn, numy):
-
-```shell
-conda env create --file environment.yml
-#After creating environment, activate it
-conda activate GazeTracking
-```
-
-
 ### Verify Installation
 
 Run the demo:
